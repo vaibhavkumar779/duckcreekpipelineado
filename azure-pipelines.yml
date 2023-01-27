@@ -1,0 +1,71 @@
+pr: none
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - terraform-job/
+parameters:
+  - name: environment
+    values:
+    - dev
+    - test
+    - staging
+    - prod
+  - name: Vmimage
+    displayName: Pool Image
+    values:
+    - Default
+    - linux
+    - macos
+  - name: runPerfTests
+    type: boolean
+    default: false
+
+resources:
+  repositories:
+  - repository: templates
+    type: git
+    name: sunilcloud86/templates
+
+variables:
+  Myimage: ${{ parameters.Vmimage }}
+
+stages:
+- stage: DefinedValues
+  pool: $(Myimage)
+  variables:
+  - template: variable-${{ parameters.environment }}.yml
+  jobs:
+  - job: Mytest
+    steps:
+    - script: |
+            echo "Environment :: $(environment)"
+            echo "Service :: $(servicePrincipalId)"
+            echo "Key :: $(servicePrincipalKey)"
+            echo "Subscription :: $(subscriptionId)"
+            echo "Tenant :: $(tenantId)"
+
+- stage: terraformSetup
+  pool: $(Myimage)
+  jobs:
+  - job: Myjob
+    steps:
+    - script: echo $(tenantId)
+- template: terraform-stages-template.yml
+  parameters:
+    environment: test
+    environmentDisplayName: Test
+    # Pass variables as environment variables.
+    # Terraform recognizes TF_VAR prefixed environment variables.
+    TerraformEnvVariables:
+      TF_VAR_department: engineering
+
+- stage: DeployfromTemplates
+  pool: $(Myimage)
+  jobs:
+  - job: Mytemplate
+    steps:
+    - script: echo $(tenantId)
+- template: common-steps.yml@templates
